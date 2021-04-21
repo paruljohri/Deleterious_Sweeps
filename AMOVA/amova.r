@@ -1,34 +1,4 @@
-require(ape)
-data(woodmouse)
-d <- dist.dna(woodmouse)
-g <- factor(c(rep("A", 7), rep("B", 8)))
-p <- factor(c(rep(1, 3), rep(2, 4), rep(3, 4), rep(4, 4)))
-(d_gp <- amova(d ~ g/p, nperm = 100)) # 2 levels
-sig2 <- setNames(d_gp$varcomp$sigma2, rownames(d_gp$varcomp))
-getPhi(sig2) # Phi table
-amova(d ~ p, nperm = 100) # 1 level
-amova(d ~ g, nperm = 100)
-
-M <- matrix(c("A","T","G", "A","G","G", "A","T","C", "T", "T", "G"), nrow = 4, byrow = TRUE)
-d <- dist.dna(M)
-
-M <- matrix(c(0,0,0, 0,1,0, 0,0,1, 1,0,0), nrow = 4, byrow = TRUE)
-d <- dist(M)
-p <- factor(c(rep("pop1", 2), rep("pop2", 2)))
-d_pop <- amova(d ~ p, nperm = 100)
-
-setwd("../Work/DelSweeps/Amova/")
-Mdna <- read.dna("test2.fasta", format = "fasta", skip = 0, nlines = 0, comment.char = "#", as.character = FALSE, as.matrix = TRUE)
-nuc.div(Mdna)
-#OR read.FASTA(file, type = "DNA")
-d <- dist.dna(Mdna)
-p <- factor(c(rep("pop1", 2), rep("pop2", 2)))
-d_pop <- amova(d ~ p, nperm = 100)
-
-#Test for unzipping a folder in R:
-unzip("C:/Users/Parul Johri/Work/DelSweeps/Amova/del_dfe_fitrescaled_FASTA_2000bp.zip", exdir="C:/Users/Parul Johri/Work/DelSweeps/Amova")
-
-#Do this for a number of files and write down the results:
+#Amova for the different evolutionary scenarios:
 library("ape", lib.loc="~/R/win-library/3.5")
 library("adegenet", lib.loc="~/R/win-library/3.5")
 library("pegas", lib.loc="~/R/win-library/3.5")
