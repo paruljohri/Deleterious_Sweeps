@@ -1,0 +1,103 @@
+//To run:
+//slim -s $seed -d "d_folder='folder name'" eqm_10kb_del_fixation.slim
+//N=1.95x10^6; mut=3x 10^-9; rec rate=0.5*1 x 10^-8
+//N=10000; mut = 5.85x10^-7; rec rate = 0.5*1.95 x 10^-6; scaling factor:195
+initialize() {
+    //setSeed(d_seed);
+
+    //set genome structure parameters:
+    inter_len = 4000;
+    intron_len = 100;
+    exon_len = 300;
+    num_genes = 2;
+    num_exons = 5;
+    num_introns = 4;
+    full_block_len = inter_len + exon_len*num_exons + intron_len*num_introns;
+    exon_block_len = exon_len + intron_len;
+    
+    //define pop gen parameters:
+    defineConstant("Na", 10000);
+    defineConstant("mut_rate_mean", 5.85*1e-7);
+    defineConstant("rec_rate_mean", 0.5*1.95*1e-6);
+    defineConstant("num_gen_burnin", 10*Na);
+    defineConstant("num_gen_output", num_gen_burnin+(5*Na));
+    defineConstant("num_subs", 0);
+    
+    //define selection coefficient boundaries:
+    defineConstant("t0", 0.0);
+    defineConstant("t1", -1.0/(2*Na));
+    defineConstant("t2", -10.0/(2*Na));
+    defineConstant("t3", -100.0/(2*Na));
+    defineConstant("t4", -1.0);
+    defineConstant("f0", 25);
+    defineConstant("f1", 49);
+    defineConstant("f2", 4);
+    defineConstant("f3", 22);
+
+    // set the overall mutation rate map
+    initializeMutationRate(mut_rate_mean);
+
+    //define the DFE:
+    initializeMutationType("m1", 0.5, "s", "return runif(1, t1, t0);"); //neutral coding, 2Nes = [0,-1]
+    initializeMutationType("m2", 0.5, "s", "return runif(1, t2, t1);"); // -1<2Nes<-10, uniform distribution
+    initializeMutationType("m3", 0.5, "s", "return runif(1, t3, t2);"); //moderately deleterious, -10<2Nes<-100, uniform distribution
+    initializeMutationType("m4", 0.5, "s", "return runif(1, t4, t3);"); //strongly deleterious, 2Nes>=-100, uniform distribution
+    initializeMutationType("m5", 0.5, "s", "return runif(1, t1, t0);"); //neutral intergenic, 2Nes = [0,-1]
+
+    // g1 genomic element type: uses m1 for all mutations
+    initializeGenomicElementType("g1", m5, 1.0); //intergenic
+    initializeGenomicElementType("g2", m5, 1.0); //intronic
+    initializeGenomicElementType("g3", c(m1, m2, m3, m4), c(f0, f1, f2, f3)); //exons: weakly deleterious, gamma
+
+    //defining genes
+    for (index_a in 0:(num_genes-1)){
+        //print (index1);
+        initializeGenomicElement(g1, (index_a*full_block_len), (index_a*full_block_len + inter_len-1)); //intergenic
+        for (index_b in 0:(num_introns-1)){
+            //print (index_a);
+            //print (index_b);
+            initializeGenomicElement(g3, ((index_a*full_block_len) + inter_len + (index_b*exon_block_len)), (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len - 1));//exon
+            initializeGenomicElement(g2, (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len), (index_a*full_block_len + inter_len + index_b*exon_block_len + exon_len + intron_len-1));//intron
+            }
+        initializeGenomicElement(g3, (index_a*full_block_len + inter_len + (index_b+1)*exon_block_len), (index_a*full_block_len + inter_len + (index_b+1)*exon_block_len + exon_len - 1));//closing with exon
+        }
+    initializeGenomicElement(g1, full_block_len*num_genes, full_block_len*num_genes + inter_len - 1);//extra intergenic towards the end
+    
+    //constant recombination along the chromosome:
+    initializeRecombinationRate(rec_rate_mean);
+}
+1 {
+    sim.addSubpop("p1", Na);
+}
+100000 late(){
+    print("N at end of burn-in: " + p1.individualCount);
+    print("The last base in the chromosome: " + sim.chromosome.lastPosition);
+    rm("num_subs", removeConstants=T);
+    defineConstant("num_subs", sum(sim.substitutions.mutationType == m2));
+}
+100001:1000000 late(){
+    
+    //check for a fixation:
+    //if (any(sim.substitutions.mutationType == m2))
+    if (sum(sim.substitutions.mutationType == m2) > num_subs)
+    {
+        catn("Deleterious sweep completed in generation " + sim.generation + ".");
+        sampledGen = sample(p1.genomes, 100, replace=F);
+	sampledGen.output(filePath=d_folder + "/output_postfixation_" + sim.generation + ".txt", append=F);
+        sampledGen.outputMS(filePath=d_folder + "/output_postfixation_" + sim.generation + ".ms", append=F);
+        rm("num_subs", removeConstants=T);
+        defineConstant("num_subs", sum(sim.substitutions.mutationType == m2));
+    }
+    if (sim.generation == num_gen_output) //output periodically after every 5N generations
+    {
+    	sampledGen = sample(p1.genomes, 100, replace=F);
+    	sampledGen.output(filePath=d_folder + "/output_gen" + num_gen_output + ".txt", append=F);
+    	sampledGen.outputMS(filePath=d_folder + "/output_gen" + num_gen_output + ".ms", append=F);
+    	sim.outputFixedMutations(filePath=d_folder + "/output_gen" + num_gen_output + ".fixed", append=F);
+        rm("num_gen_output", removeConstants=T);
+        defineConstant("num_gen_output", sim.generation + (5*Na));
+    }
+    
+}
+
+
