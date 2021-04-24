@@ -9,4 +9,11 @@ python separate_mutn_types_fst.py -chromLen 10000 -mutnType m5 -input_folder /pa
 #where m1: effectively neutral mutations
 #      m2: weakly deleterious mutations
 #      m5: beneficial mutations
+#Note that chromLen here is 1 base pair less than the full length. That is, our chromosome is 10001 bp long.
+
+
+#To get statistics for each mutation type separately:
+python statistics_slidingwindow_pylibseq_general_reps_fst.py -numIndvPop1 100 -numIndvPop2 100 -winSize 1000 -stepSize 1000 -regionLen 10000 -input_folder /scratch/pjohri1/DelSweeps/FST/arguello_beneficials_strong_m1 -output_folder /scratch/pjohri1/DelSweeps/FST -output_prefix arguello_beneficials_strong_m1
+python statistics_slidingwindow_pylibseq_general_reps_fst.py -numIndvPop1 100 -numIndvPop2 100 -winSize 1000 -stepSize 1000 -regionLen 10000 -input_folder /scratch/pjohri1/DelSweeps/FST/arguello_beneficials_strong_m2 -output_folder /scratch/pjohri1/DelSweeps/FST -output_prefix arguello_beneficials_strong_m2
+python statistics_slidingwindow_pylibseq_general_reps_fst.py -numIndvPop1 100 -numIndvPop2 100 -winSize 1000 -stepSize 1000 -regionLen 10000 -input_folder /scratch/pjohri1/DelSweeps/FST/arguello_beneficials_strong_m5 -output_folder /scratch/pjohri1/DelSweeps/FST -output_prefix arguello_beneficials_strong_m5
 
