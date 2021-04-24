@@ -1,0 +1,128 @@
+// Purpose:
+// run recurrent sweeps model with population split and added beneficials, fitnesses rescaled following population split
+
+// Parameters (from Arguello et al 2019 (BNZ model)):
+// african Ne: 
+// european Ne: 
+// ancestral Ne: 1.95 x 10^6
+// generations since split: 1.03 x 10^5
+// time and size scaled down by 100
+// mutation and recombination scaled up by 100
+
+// Run with: slim -d "replicate='x'" -d "d_ben_s='small'" -d "d_ben_p='0.01'" arguello_beneficials_fitrescaled.slim
+
+// Simulation parameters:
+initialize()
+{
+	// variables
+	defineConstant("scaling_factor", 100);
+	defineConstant("mu", (4.044534*(10^(-7)))); // total mutation rate for f0, f1, f2, f3 classes (beneficials added)
+	defineConstant("r", (10^(-6)));
+	defineConstant("Ne", 19500); // ancestral Ne
+	defineConstant("rep", replicate);
+	defineConstant("Nc_Afr", asInteger(d_N_Afr/scaling_factor));
+        defineConstant("Nc_Eur", asInteger(d_N_Eur/scaling_factor));
+        print ("Current African size: " + Nc_Afr);
+        print ("Current European size: " + Nc_Eur);
+	defineConstant("ben_freq", d_ben_p); // percentage of beneficials mutations (1 = 1%, 0.1 = 0.1%)
+	defineConstant("ben_effect", d_ben_s); // selection coefficient of beneficials (small = 1-10, large = 1000)
+
+	// set the overall mutation rate
+	initializeMutationRate(mu);
+
+	// m1 mutation type (effectively neutral and semi-dominant)
+	initializeMutationType("m1", 0.5, "s", "runif(1, (-1/(2*Ne)), 0);");
+
+	// m2 mutation type (weakly deleterious and semi-dominant)
+	initializeMutationType("m2", 0.5, "s", "runif(1, (-10/(2*Ne)), (-1/(2*Ne)));");
+	
+	// m3 mutation type (deleterious and semi-dominant)
+	initializeMutationType("m3", 0.5, "s", "runif(1, (-100/(2*Ne)), (-10/(2*Ne)));");
+
+	// m4 mutation type (effectively neutral and semi-dominant)
+	initializeMutationType("m4", 0.5, "s", "runif(1, (-10000/(2*Ne)), (-100/(2*Ne)));");
+
+	// initialize beneficial mutations
+	if (ben_effect == "small")
+	{
+		initializeMutationType("m5", 0.5, "s", "runif(1, (1/(2*Ne)), (10/(2*Ne)));"); // small s beneficials that mirror f1 class
+	}
+	if (ben_effect == "large")
+	{
+		initializeMutationType("m5", 0.5, "f", (1000/(2*Ne))); // large s beneficials with fixed s
+	}
+	
+	// g1 genomic element type, uses deleterious mutations
+	initializeGenomicElementType("g1", c(m1, m2, m3, m4, m5), c((0.247*(1.0-ben_freq)), (0.494*(1.0-ben_freq)), (0.039*(1.0-ben_freq)), (0.219*(1.0-ben_freq)), ben_freq)); // 1% beneficials
+	
+
+	// uniform chromosome of lenth 10 kb
+	initializeGenomicElement(g1, 0, 10000);
+
+	// uniform recombination along the chromosome
+	initializeRecombinationRate(r);
+}
+
+// First generation
+1 late()
+{
+	// create a population of 19500 individuals
+	sim.addSubpop("p1", Ne);
+}
+
+// Run simulation for a burn in period of 10Ne generations
+195000 early()
+{
+	// split off two subpopulations (African and European) from source population
+	sim.addSubpopSplit("p2", Nc_Afr, p1); // African Ne
+	sim.addSubpopSplit("p3", Nc_Eur, p1); // European Ne
+} 
+
+// Reduce the ancestral population size to 0 after subpopulations have been populated
+195000 late()
+{
+	// remove the source subpopulation
+	p1.setSubpopulationSize(0); 
+}
+
+// Run simulation for an additional 1030 generations to model split time
+196030 late()
+{
+	// sampling the genomes
+	afr = sample(p2.genomes, 100, F);
+	eur = sample(p3.genomes, 100, F);
+
+	// vector of all sampled genomes
+	genomes = c(afr, eur);
+
+	// list of segregating sites sorted by position
+	muts = sortBy(unique(genomes.mutations), "position");
+
+	// create an MS file to write to
+	ms = paste0(c(d_folder, "/output", rep, ".ms"));
+	writeFile(ms, "", append = F);
+
+	// formatting the header
+	writeFile(ms, paste0(c("\\\\", "\n", "segsites: ", size(muts))), append = T);
+	
+	// create a list of positions of the seg sites
+	positions = format("%.6f", muts.position / sim.chromosome.lastPosition);
+	writeFile(ms, paste0(c("positions: ", paste(positions, " "))), append = T);
+
+	// printing the sample genotypes
+	for (genome in afr)
+	{
+		hasMuts = (match(muts, genome.mutations) >= 0);
+		writeFile(ms, paste0(paste(asInteger(hasMuts), "")), append = T);
+	}
+	for (genome in eur)
+	{
+		hasMuts = (match(muts, genome.mutations) >= 0);
+		writeFile(ms, paste0(paste(asInteger(hasMuts), "")), append = T);
+	}
+
+	// output information for fixed mutations from total simulation
+	full = paste0(c(d_folder, "/output", rep, ".full"));
+	genomes.output(full, append=F);
+	sim.simulationFinished();
+}
