@@ -1,3 +1,27 @@
+#FST simulations:
+slim -d "d_ben_s='small'" -d d_ben_p=0.01 -d "replicate='${repID}'" -d "d_folder='/mnt/storage/pjohri/FST/${folder}'" arguello_beneficials_mean.slim
+slim -d "d_ben_s='large'" -d d_ben_p=0.01 -d "replicate='${repID}'" -d "d_folder='/mnt/storage/pjohri/FST/${folder}'" arguello_beneficials_mean.slim
+
+#FST simulations performed for extreme values of the confidence intervals:
+#This was run for both _maxtime and _mintime scripts.
+pop_afr_min=3.02e6
+pop_afr_max=4.69e6
+pop_eur_min=2.03e5
+pop_eur_max=3.89e6
+
+#run slim on combination 1
+/mnt/storage/software/slim.3.1/build/slim -d "d_ben_s='large'" -d d_ben_p=0.01 -d d_N_Afr=${pop_afr_min} -d d_N_Eur=${pop_eur_min} -d "replicate='${repID}'" -d "d_folder='/mnt/storage/pjohri/FST/${folder}1'" arguello_beneficials_posterior_maxtime.slim
+
+#run slim on combination 2
+/mnt/storage/software/slim.3.1/build/slim -d "d_ben_s='large'" -d d_ben_p=0.01 -d d_N_Afr=${pop_afr_max} -d d_N_Eur=${pop_eur_max} -d "replicate='${repID}'" -d "d_folder='/mnt/storage/pjohri/FST/${folder}2'" arguello_beneficials_posterior_maxtime.slim
+
+#run slim on combination 3
+/mnt/storage/software/slim.3.1/build/slim -d "d_ben_s='large'" -d d_ben_p=0.01 -d d_N_Afr=${pop_afr_min} -d d_N_Eur=${pop_eur_max} -d "replicate='${repID}'" -d "d_folder='/mnt/storage/pjohri/FST/${folder}3'" arguello_beneficials_posterior_maxtime.slim
+
+#run slim on combination 4
+/mnt/storage/software/slim.3.1/build/slim -d "d_ben_s='large'" -d d_ben_p=0.01 -d d_N_Afr=${pop_afr_max} -d d_N_Eur=${pop_eur_min} -d "replicate='${repID}'" -d "d_folder='/mnt/storage/pjohri/FST/${folder}4'" arguello_beneficials_posterior_maxtime.slim
+
+##########################Statistics###########################################
 #To get FST for slinding windows:
 python statistics_slidingwindow_pylibseq_general_reps_fst.py -winSize 500 -stepSize 500 -regionLen 10000 -numIndvPop1 100 -numIndvPop2 100 -input_folder /path/to/${foldername} -output_folder /path/to/output/directory -output_prefix ${foldername}
 
