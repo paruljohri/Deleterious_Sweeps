@@ -1,0 +1,107 @@
+// Purpose:
+// run recurrent sweeps model with population split
+
+// Parameters (from Arguello et al 2019 (BNZ model)):
+// african Ne: 3.91 x 10^6
+// european Ne: 4.73 x 10^5
+// ancestral Ne: 1.95 x 10^6
+// generations since split: 6.62 x 10^4
+// time and population size scaled down by 100
+// mutation and recombination scaled up by 100
+
+// Run with: slim -d "replicate='x'" arguello_neutral.slim
+
+// Simulation parameters: 
+initialize()
+{
+	// variables
+	defineConstant("mu", (4.044534*(10^(-7)))); // total mutation rate for f0, f1, f2, f3 classes, but now s=0
+	defineConstant("r", (10^(-6)));
+	defineConstant("Ne", 19500); // ancestral Ne
+	defineConstant("rep", replicate);
+
+	// set the overall mutation rate
+	initializeMutationRate(mu);
+
+	// m0 mutation type (neutral and semi-dominant)
+	initializeMutationType("m0", 0.5, "f", 0.0);
+	
+	// g1 genomic element type, uses m0 for all mutations
+	initializeGenomicElementType("g1", m0, 1.0);
+
+	// uniform chromosome of lenth 10 kb with neutral mutations s=0 occuring
+	initializeGenomicElement(g1, 0, 10000);
+
+	// uniform recombination along the chromosome
+	initializeRecombinationRate(r);
+}
+
+// First generation
+1 late()
+{
+	// create a population of 19500 individuals
+	sim.addSubpop("p1", Ne);
+}
+
+// Run simulation for a burn in period of 10Ne generations
+195000 early()
+{
+	// split off two subpopulations (African and European) from source population
+	sim.addSubpopSplit("p2", 39100, p1); // African Ne
+	sim.addSubpopSplit("p3", 4730, p1); // European Ne
+}
+
+// Reduce the ancestral population size to 0 after subpopulations have been populated
+195000 late()
+{
+	// remove the source subpopulation
+	p1.setSubpopulationSize(0); 
+}
+
+// Run simulation for an additional 662 generations to model split time
+195662 late()
+{
+	// sampling the genomes
+	afr = sample(p2.genomes, 100, F);
+	eur = sample(p3.genomes, 100, F);
+
+	// vector of all sampled genomes
+	genomes = c(afr, eur);
+
+	// list of segregating sites sorted by position
+	m = sortBy(unique(genomes.mutations), "position");
+
+	// create an MS file to write to
+	ms = paste0(c("folder/file_prefix", rep, ".ms"));
+	writeFile(ms, "", append = F);
+
+	// formatting the header
+	writeFile(ms, paste0(c("\\\\", "\n", "segsites: ", size(m))), append = T);
+	
+	// create a list of positions of the seg sites
+	positions = format("%.6f", m.position / sim.chromosome.lastPosition);
+	writeFile(ms, paste0(c("positions: ", paste(positions, " "))), append = T);
+
+	// printing the sample genotypes
+	for (genome in afr)
+	{
+		hasMuts = (match(m, genome.mutations) >= 0);
+		writeFile(ms, paste0(paste(asInteger(hasMuts), "")), append = T); 
+	}
+	for (genome in eur)
+	{
+		hasMuts = (match(m, genome.mutations) >= 0);
+		writeFile(ms, paste0(paste(asInteger(hasMuts), "")), append = T); 
+	}
+
+	// output full information from total simulation
+	full = paste0(c("folder/file_prefix", rep, ".full"));
+	genomes.output(full, append=F);
+
+	// output information for fixed mutations from total simulation
+	fixed = paste0(c("folder/file_prefix", rep, ".fixed"));
+	sim.outputFixedMutations(fixed, append=F);
+	
+	sim.simulationFinished();
+}
+

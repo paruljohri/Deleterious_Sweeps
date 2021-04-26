@@ -1,0 +1,101 @@
+// Purpose:
+// run recurrent sweeps model with population split
+
+// Parameters (from Li and Stephan 2006):
+// african current/ancestral Ne: 8.603 x 10^6
+// european current Ne: 1.075 x 10^6 
+// european bottleneck Ne: 2.2 x 10^3
+// bottleneck duration generations: 3.4 x 10^3 
+// generations since split: 1.58 x 10^5  
+// time and population size scaled down by 100
+// mutation and recombination scaled up by 100
+
+// Run with: slim -d "replicate='x'" li_stephan_neutral_bneck.slim
+
+// Simulation parameters: 
+initialize()
+{
+	// variables
+	defineConstant("mu", (4.044534*(10^(-7)))); // total mutation rate for f0, f1, f2, f3 classes, but now s=0
+	defineConstant("r", (10^(-6)));
+	defineConstant("Ne", 86030); // ancestral Ne
+	defineConstant("rep", replicate); 
+
+	// set the overall mutation rate
+	initializeMutationRate(mu);
+
+	// m0 mutation type (neutral and semi-dominant)
+	initializeMutationType("m0", 0.5, "f", 0.0);
+	
+	// g1 genomic element type, uses m0 for all mutations
+	initializeGenomicElementType("g1", m0, 1.0);
+
+	// uniform chromosome of lenth 10 kb with neutral mutations s=0 occuring
+	initializeGenomicElement(g1, 0, 10000);
+
+	// uniform recombination along the chromosome
+	initializeRecombinationRate(r);
+}
+
+// First generation
+1 late()
+{
+	// create a population of 86030 individuals
+	sim.addSubpop("p1", Ne);
+}
+
+// Run simulation for a burn in period of 10Ne generations
+860300 early()
+{
+	// split off European subpopulation from source population
+	sim.addSubpopSplit("p2", 22, p1); // European bottleneck Ne
+}
+
+// Increase European Ne to present day Ne size after duration of bottleneck
+860334 early()
+{
+	// increase european population size post-bottleneck
+	p2.setSubpopulationSize(10750);
+}
+
+// Run simulation for an additional 1580 generations to model split time
+861914 late()
+{
+	// sampling the genomes
+	afr = sample(p1.genomes, 100, F);
+	eur = sample(p2.genomes, 100, F);
+
+	// vector of all sampled genomes
+	genomes = c(afr, eur);
+
+	// list of segregating sites sorted by position
+	muts = sortBy(unique(genomes.mutations), "position");
+
+	// create an MS file to write to
+	ms = paste0(c("folder/file_prefix", rep, "_neutral_bneck.ms"));
+	writeFile(ms, "", append = F);
+
+	// formatting the header
+	writeFile(ms, paste0(c("\\\\", "\n", "segsites: ", size(muts))), append = T);
+	
+	// create a list of positions of the seg sites
+	positions = format("%.6f", muts.position / sim.chromosome.lastPosition);
+	writeFile(ms, paste0(c("positions: ", paste(positions, " "))), append = T);
+
+	// printing the sample genotypes
+	for (genome in afr)
+	{
+		hasMuts = (match(muts, genome.mutations) >= 0);
+		writeFile(ms, paste0(paste(asInteger(hasMuts), "")), append = T);
+	}
+	for (genome in eur)
+	{
+		hasMuts = (match(muts, genome.mutations) >= 0);
+		writeFile(ms, paste0(paste(asInteger(hasMuts), "")), append = T);
+	}
+
+	// output full information from total simulation
+	full = paste0(c("folder/file_prefix", rep, "_neutral_bneck.full"));
+	genomes.output(full, append=F);
+	sim.simulationFinished();
+}
