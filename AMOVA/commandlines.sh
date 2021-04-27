@@ -5,8 +5,16 @@ python convert_ms_to_fasta.py ${folder} outputrepID.ms num_replicates window_siz
 
 #where num_replicates = 100
 #and window size = 500 / 1000 / 2000
+#Exactcommanndlines:
+python convert_ms_to_fasta.py neutral_arguello recurrent_sweeps_split_strictly_neutral_repID.ms 100 500
+python convert_ms_to_fasta.py del_dfe_fitrescaled recurrent_sweeps_split_arguello_bnz_repID_fitrescaled.ms 100 500
+python convert_ms_to_fasta.py del_dfe_fitnotrescaled recurrent_sweeps_split_arguello_bnz_norescale_repID_full_muts.ms 100 500
+python convert_ms_to_fasta.py arguello_beneficials_weak outputrepID.ms 100 500
+python convert_ms_to_fasta.py arguello_beneficials_strong outputrepID.ms 100 500
+python convert_ms_to_fasta.py neutral_bneck_li_stephan recurrent_sweeps_split_li_stephan_repID_neutral_bneck.ms 10 500
 
 #Step 2: Perform Amova:
+#Use amova.r to perform that analysis for all folders mentioned above
 
 #Step 3:Get the proportion of mutations in those outlier regions:
 python get_proportion_mutn_types_amova_outliers.py 500
