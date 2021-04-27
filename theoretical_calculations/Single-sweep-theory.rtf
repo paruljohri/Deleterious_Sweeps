@@ -1,0 +1,496 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1671\cocoasubrtf600
+{\fonttbl\f0\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+{\info
+{\title c}
+{\author Brian Charlesworth}
+{\*\company University of Edinburgh}}\margl359\margr359\vieww17580\viewh9220\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf0 c	program to calculate sweep effect for mutations with intermediate dominance\
+c	autosomal inheritance with inbreeding\
+c       integrations use Simpsons'rule\
+	CHARACTER*20 FOUT\
+	\
+	real a,b,h,e1,FI,rho2,gam,TSC1,TSC2,q1,q2,recp1,recp2,rect1,rect2,cprob1,cprob2,recorr1,recorr2\
+	real recps1,recps2,phi,delpi10,delpi20\
+	common nsimp,ANP\
+	\
+	write (9,*) 'Output file?'\
+	read(9,*)  FOUT \
+	OPEN (1,FILE=FOUT)\
+	REWIND 1\
+	\
+	write(9,*) 'Number of points for Simpsons Rule?'\
+	read(9,*) nsimp\
+	\
+	write(1,*) 'Program for fixation time with incomplete dominance and inbreeding for autosomes'\
+	write(1,*)  'No background selection effects'\
+	write(1,*)  'Includes correction for 2-locus IBD with selfing'\
+	write(1,*)  'Diversity is scaled relative to the neutral value for the assumed breeding system'\
+	write(1,*)  ''\
+	write(9,*) 'Scaled selection coefficient?'\
+	read(9,*) gam\
+	write(1,*) ''\
+	write (1,*) 'Number of points for Simpsons rule= ',nsimp\
+	write(1,*) 'Scaled selection coefficient (random mating autosomal value)= ',gam\
+	write(9,*) 'Fixation index?'\
+	read(9,*) FI\
+	write(9,*) 'Fixation index= ',FI\
+	write(1,*) 'Fixation index= ',FI\
+	gam0=gam/(1+FI)\
+	write(1,*) 'Scaled selection coefficient (true value)= ',gam0\
+	\
+	write(9,*) 'Dominance coefficient?'\
+	read(9,*) h\
+	write(1,*) ''\
+	write(1,*) 'Dominance coefficient= ',h\
+	\
+	a=FI+(1.0-FI)*h\
+	b=(1.0-FI)*(1-2.0*h)\
+	\
+	write(1,*) 'Selection parameters= ',a,b\
+	write(1,*) ''\
+	write(9,*) 'Selection parameters= ',a,b\
+	\
+	write(9,*) 'Population size?'\
+	read(9,*) NPOP\
+	write(1,*) 'Population size (uncorrected)= ',NPOP\
+	\
+	ANP=2*NPOP/(1+FI)\
+	write(1,*) 'Neutral mean coalescent time'\
+	write(1,*) ''\
+	\
+	q1=1.0/(2*a*gam0)\
+	p1=1-q1\
+	p2=1.0/(2*(a+b)*gam0)\
+	q2=1-p2\
+		\
+	write(9,*) 'Approximate conditional initial and final frequencies'\
+	write(9,*) 'q1= ',q1,' q2= ',q2\
+	write(9,*) 'p1= ',p1,' p2= ',p2\
+	write(1,*) 'Approximate conditional initial and final frequencies'\
+	write(1,*) 'q1= ',q1,' q2= ',q2\
+	write(1,*) 'p1= ',p1,' p2= ',p2\
+	write(1,*) ''\
+	\
+	c=a+b*q1\
+	d=a+b\
+	e1=a+b*q2	\
+	\
+	G=(log(q2)+log(c)-log(q1)-log(e1))/a\
+	G=G+(log(p1)+log(e1)-log(p2)-log(c))/d\
+	\
+	A=((1.0/q1)-1.0)+(b/a)*(log(q1)+log(e1)-log(c)-log(q2))\
+	A=((A/a)+G)/gam0\
+	PNC=exp(0.0-A)\
+c	probability of no coalescence during sweep\
+		\
+	t1=(log(q2*c)-log(q1*e1))/a\
+	t2=(log(p1*e1)-log(p2*c))/d\
+	Td=(t1+t2)/gam0\
+c	deterministic fixation time on coalescent timescale\
+	write(1,*) 'Deterministic time to fixation (coalescent time scale)= ',Td\
+	write(1,*) ''\
+	write(1,*) 'Prob. of no coalescent event during sweep (with no rec.)= ',PNC\
+	write(1,*) ''\
+\
+	\
+10	write(9,*) 'Scaled recombination rate?'\
+	read(9,*) rho\
+	write(1,*) 'Scaled recombination rate (random mating autosomal value)= ',rho\
+	write(1,*) ''\
+	if(rho.ge.1000) go to 20\
+	\
+	rfac=rho/(2.0*NPOP)\
+\
+	S=2*FI/(1.0+FI)\
+c	selfing rate\
+\
+	phi=S*(2-S-2*(1.0-rfac)*rfac*(2.0-3.0*S))\
+	phi=phi/((2.0-S)*(2.0-(1.0-2.0*rfac*(1.0-rfac))*S))\
+c	2-locus IBD probability\
+\
+	rho1=rho*(1.0-2*FI+phi)/(1.0+FI)\
+	ros=rho1/gam0\
+	\
+	write(1,*) 'Unscaled recombination rate= ',rfac,' phi= ',phi\
+	write(1,*) 'Scaled recombination rate (true value)= ',rho1,' r/s = ',ros\
+	\
+	\
+	rho2=rho/(1.0+FI)\
+c	rho scaled by corrected Ne, but not corrected for inbreeding	\
+\
+	call integ1(cprob1,cprob2,TSC1,TSC2,recp1,recp2,rect1,rect2,recps1,recps2,delpi10,q1,q2,gam0,a,b,rho2,FI,phi)\
+\
+c	cprob is coalescent probability during sweep\
+	TS31=TSC1/cprob1\
+	TS32=TSC1/cprob2\
+c	TS3 is coalescence time during sweep, conditioned on coalescence\
+c	recp is probability of recombination during sweep\
+c	index 1 is the value corrected for selection effect on F; 2 is the uncorrected value\
+\
+	if(rho1.le.0.001) then\
+	rect1=0.0\
+	rect2=0.0\
+	recp1=0.0\
+	recp2=0.0\
+	else\
+	rect1=rect1/recp1\
+	rect2=rect2/recp2\
+	end if\
+c	rect is mean time of recombination event, conditioned on recombination\
+\
+	\
+	if(rho1.le.0.001) then\
+	PNR1=1.0\
+	PNR2=1.0\
+	else\
+	call recterm1(a,b,c,FI,gam0,q1,q2,recorr1,recorr2,phi)	\
+	B1=2*rho2*recorr1\
+	B2=2*rho2*recorr2\
+	PNR1=exp(0.0-B1)\
+	PNR2=exp(0.0-B2)\
+	end if\
+c	PNR is probability of no recombination during sweep\
+\
+	TS11=PNC*PNR1*Td\
+	TS12=PNC*PNR2*Td\
+c 	coalescent time with no rec or coal during sweep\
+\
+	TS21=TSC1+TS11\
+	TS22=TSC2+TS12\
+c	net coalescence time for sweep\
+	\
+	delpi1=1-recp1-TS21\
+	delpi2=1-recp2-TS22\
+c	net reduction in diversity at end of sweep-uncorrected\
+	delpi11=delpi1-recps1*Td\
+	delpi12=delpi2-recps2*Td\
+c	net reduction in diversity at end of sweep with Td correction\
+	delpi21=delpi1-(recps1*Td+(recp1-recps1)*rect1)\
+	delpi22=delpi2-(recps2*Td+(recp2-recps2)*rect2)\
+c	net reduction in diversity at end of sweep with Td and Tw correction\
+\
+	delpi10=delpi10**2\
+\
+	write(1,*) ''\
+	write(1,*) 'Prob. of no recombination event during sweep (approx, corr. for within-gen seln.)= ',PNR1\
+	write(1,*) 'Prob. of no recombination event during sweep (exact, uncorr.)= ',PNR2\
+	write(1,*) 'Prob. of coalescence during sweep (approx, corr.)= ',cprob1\
+	write(1,*) 'Prob. of coalescence during sweep (exact, uncorr.)= ',cprob2\
+	write(1,*) ''\
+	write(1,*) 'Mean coalescent time during sweep (approx, corr.)= ',TSC1\
+	write(1,*) 'Mean coalescent time during sweep (exact, uncorr.)= ',TSC2\
+	write(1,*) 'Mean coalescent time during sweep, conditioned on coal. (approx, corr.) = ',TS31\
+	write(1,*) 'Mean coalescent time during sweep, conditioned on coal. (exact, uncorr.) = ',TS32\
+	write(1,*) 'Net time to coalescence for sweep (approx, corr.)= ',TS21\
+	write(1,*) 'Net time to coalescence for sweep (exact, uncorr.)= ',TS22\
+	write(1,*) 'Net prob. of recombination (approx, corr.).= ',recp1\
+	write(1,*) 'Net prob. of recombination (exact, uncorr).= ',recp2\
+	write(1,*) ''\
+	write(1,*) 'recorr1= ',recorr1,' recorr2= ',recorr2\
+	write(1,*) 'Net prob. of single recombination event (approx, corr.).= ',recps1\
+	write(1,*) 'Net prob. of single recombination event (exact, uncorr.).= ',recps2\
+	write(1,*) 'Mean time to recombination during sweep, conditioned on rec. (approx, corr.)= ',rect1\
+	write(1,*) 'Mean time to recombination during sweep, conditioned on rec. (exact, uncorr.)= ',rect2\
+	write(1,*) ''\
+	write(1,*) 'Expected reduction in diversity at end of sweep (approx, corr.)= ',delpi1\
+	write(1,*) 'Expected reduction in diversity at end of sweep (exact, uncorr.)= ',delpi2\
+	write(1,*) 'Expected red. in diversity at end of sweep (approx, corr.): Td corr. = ',delpi11\
+	write(1,*) 'Expected red. in diversity at end of sweep (exact, uncorr.): Td corr. = ',delpi12\
+	write(1,*) 'Expected red. in diversity at end of sweep (approx, corr.): Td & Tw corr. = ',delpi21\
+	write(1,*) 'Expected red. in diversity at end of sweep (exact, uncorr.): Td & Tw corr. = ',delpi22\
+	write(1,*) ''\
+	write(1,*) 'Expected red. in diversity at end of sweep (direct calculation) = ',delpi10\
+	\
+	if(rho.le.0.001) then\
+	pnreca=1\
+	else\
+	pnreca=exp(0.0-rho1*Td)\
+	end if\
+	write(1,*) 'Approximate reduction in diversity using rho*Td= ',pnreca\
+	write(1,*) ''\
+	write(1,*) ''\
+	go to 10\
+	\
+20	end                 \
+\
+		subroutine recterm1(a,b,c,FI,gam,x1,x2,recorr1,recorr2,phi)\
+c		calulates recombination factor A2>A1 for given A2 frequency x\
+\
+		real a,b,c,e1,FI,gam,x1,x2,recorr1,recorr2,phi\
+		common nsimp,ANP\
+				\
+		an=1.0/ANP\
+		e1=a+b*x2\
+		f1=log(x2)+log(c)-log(x1)-log(e1)\
+		f2=log(e1)-log(c)\
+		\
+		recorr1=0.0\
+		recorr2=0.0\
+				\
+		if(abs(b).le.0.001) then\
+		recorr1=(1.0-FI)*f1/gam\
+		recorr1=(recorr1-an*FI*(log(x2)-log(x1)+2*(x1-x2)))/a\
+		else\
+		recorr1=(((1.0-FI)/gam)-an*FI)*f1/a\
+		recorr1=recorr1-an*f2*(1.0+FI-2*FI/b)\
+		recorr1=recorr1-an*a*(1.0+FI)*f2/b\
+		recorr1=recorr1+an*(x2-x1)*(1.0+FI)\
+		end if	\
+		\
+		recorr1=recorr1+an*FI*(log(x2)-log(x1)+2*(x1-x2))\
+		\
+		recorr2=(1.0-2*FI+phi)*f1/(a*gam)\
+c		uncorrected exact recombination factor\
+		\
+		return \
+		end\
+		\
+		subroutine recterm2(a,b,FI,gam,x,q1,recorr1,recorr2,phi)\
+c		calulates recombination factor A1>A2 for given A2 frequency x\
+		\
+		real a,b,FI,gam,x,q1,recorr1,recorr2,phi\
+		common nsimp,ANP\
+				\
+		an=1.0/ANP\
+		y=1.0-x\
+		p1=1.0-q1\
+		c=a+b*x\
+		f=a+b*q1\
+		d=a+b\
+		e2=abs(a-b)\
+		\
+		f1=log(p1)+log(c)-log(y)-log(f)\
+		recorr1=0.0\
+		recorr2=0.0\
+		\
+		if(abs(b).le.0.001) then\
+		recorr1=(1.0-FI)*f1/(a*gam)\
+		recorr1=recorr1-an*FI*(2*(q-q1)+log(y)-log(p1))/a\
+		else\
+			if(e2.le.0.001) then\
+			recorr1=(1.0-FI)*f1/(d*gam)\
+			recorr1=recorr1-an*(1+FI)*((q-q1)+(a/b)*(log(c)-log(f)))\
+			recorr1=recorr1-an*FI*(2/b)*(log(c)-log(f))\
+			recorr1=recorr1-an*FI*(0.3333*(y**3-p1**3)/b)\
+		else\
+		recorr1=(1.0-FI)*f1/(d*gam)\
+		recorr1=recorr1-an*(1+FI)*((q-q1)+(a/b)*(log(c)-log(f)))\
+		recorr1=recorr1-an*FI*(2/b)*(log(c)-log(f))\
+		recorr1=recorr1-an*FI*(log(y)+log(f)-log(p1)-log(c))/(a-b)\
+			end if\
+		end if	\
+		recorr1=recorr1+an*FI*(2*(q-q1)+log*(p)-log(p1))\
+\
+\
+		recorr2=(1.0-2*FI+phi)*f1/(d*gam)\
+c		uncorrected exact recombination factor\
+\
+x		write(9,*) 'recorr1,recorr2,phi,FI ',recorr1,recorr2,phi,FI\
+x		pause			\
+\
+\
+		return \
+		end\
+	\
+		subroutine integ1(ai11,ai12,ai21,ai22,ai31,ai32,ai41,ai42,ai51,ai52,ai61,q1,q2,gam,a,b,rho,FI,phi)\
+c		uses Simpson's rule\
+c		integrals for coal. prob., coal. time, rec. prob. and rec. time \
+\
+		real gam,ai11,ai12,ai21,ai22,ai31,ai32,ai41,ai42,ai51,ai52,ai61,q1,q2,rho,FI,phi\
+		real a,b,c,e1,f,recorr11,recorr21,recorr12,recorr22\
+		common nsimp,ANP\
+	\
+		p1=1.0-q1\
+		p2=1.0-q2\
+		\
+		d=a+b\
+		e1=a+b*q2\
+		f=a+b*q1\
+		\
+		rhoc=rho*(1.0-2*FI+phi)\
+c 		rho corrected for inbreeding\
+				\
+		ai11=0.0\
+		ai12=0.0\
+		ai21=0.0\
+		ai22=0.0\
+		ai31=0.0\
+		ai32=0.0\
+		ai41=0.0\
+		ai42=0.0\
+		ai51=0.0\
+		ai52=0.0\
+		\
+		ans=nsimp\
+		DX=(q2-q1)/ans\
+		j=0\
+		F11=0.0\
+		F12=0.0\
+		F31=0.0\
+		F32=0.0\
+		N1=nsimp+1\
+		\
+		do 50 i=1,N1\
+		\
+		x=q1+(i-1)*DX\
+		y=1.0-x\
+c		x is frequency of favourable allele\
+		c=a+b*x\
+				\
+		delxi=1.0/(x*c)\
+c		inverse of selection equation, without gamma or y factors\
+		\
+		if(i.eq.N1) then\
+		G=0.0\
+		PNC=1.0\
+		PNR=1.0\
+		go to 40\
+		else\
+		G=(log(q2)+log(c)-log(x)-log(e1))/a\
+		G=G+(log(y)+log(e1)-log(p2)-log(c))/d\
+		G=G/gam\
+c		backwards time to freq. x, on coalescent timescale\
+\
+		G1=(x*(a+b*q1))/(q1*c)\
+		G2=(p1*c)/(y*(a+b*q1))\
+c		functions for direct calculation integral\
+\
+		A=((1.0/x)-(1.0/q2))+(b/a)*(log(x)+log(e1)-log(c)-log(q2))\
+		A=A/a\
+		A=(A/gam)+G\
+		PNC=exp(0.0-A)\
+c		probability of no coalescence by frequency x\
+		end if\
+\
+		if(rho.le.0.001) then\
+		PNR11=1.0\
+		PNR12=1.0\
+		PNR31=1.0\
+		PNR32=1.0\
+		else\
+		call recterm1(a,b,c,FI,gam,x,q2,recorr11,recorr21,phi)\
+		B11=2*rho*recorr11\
+		B12=2*rho*recorr21\
+c		index 1 is the value corrected for selection effect on F; 2 is the uncorrected value\
+		\
+ 		PNR11=exp(0.0-B11)		\
+		PNR12=exp(0.0-B12)\
+c		probability of no recombination by frequency x\
+\
+		call recterm2(a,b,FI,gam,x,q1,recorr12,recorr22,phi)\
+		B21=rho*recorr12\
+		B22=rho*recorr22\
+c		factor for prob. of no extra A1>A2 recombination\
+\
+		call recterm1(a,b,f,FI,gam,q1,x,recorr11,recorr21,phi)\
+		B31=rho*recorr11\
+		B32=rho*recorr21\
+c		factor for prob. of no extra A2>A1 recombination\
+\
+		PNR31=exp(0.0-B21-B31)\
+		PNR32=exp(0.0-B22-B32)		\
+		end if\
+c		probability of no additional recombination by frequency q1\
+\
+40		F11=delxi*PNC*PNR11/(x*y*gam)\
+		F12=delxi*PNC*PNR12/(x*y*gam)\
+c		integrands for prob. of coalescence during sweep\
+		\
+		recfac2=1.0-2*FI+phi\
+		recfac1=1.0-FI-gam*(x*y*(1+FI)*b+FI*(1.0-2*x))/ANP\
+		recfac1=recfac1+gam*FI*((a+b*x)*(1.0-2*x))/ANP\
+c		corrected and uncorrected recombination terms\
+1\
+		F31=2*rho*recfac1*delxi*PNC*PNR11/gam\
+		F32=2*rho*recfac2*delxi*PNC*PNR12/gam\
+c		integrands for prob. of  recombination during sweep\
+\
+		F51=F31*PNR31\
+		F52=F32*PNR32\
+c		integrands for prob. of single recombination during sweep\
+			\
+		G11=G1**(0.0-rhoc/(a*gam))\
+		G12=G2**(0.0-rhoc/(d*gam))\
+		\
+		F61=G11*G12\
+c		integrand for direct calculation of reduction in diversity		\
+		\
+		if(i.eq.N1) then\
+		F21=0.0\
+		F22=0.0\
+		F41=0.0\
+		F42=0.0\
+		else\
+		F21=F11*G\
+		F22=F12*G\
+c		integrands for mean time to coalescence, on coalescent timescale\
+		F41=F31*G\
+		F42=F32*G\
+c		integrand for mean time to recombination, on coalescent timescale\
+		end if\
+		\
+		if(i.eq.1) then\
+		ai11=F11\
+		ai12=F12\
+		ai21=F21\
+		ai22=F22\
+		ai31=F31\
+		ai32=F32\
+		ai41=F41\
+		ai42=F42\
+		ai51=F51\
+		ai52=F52\
+		ai61=F61\
+		go to 50\
+		end if \
+			if(j.eq.0) then\
+			ai11=ai11+4*F11\
+			ai12=ai12+4*F12\
+			ai21=ai21+4*F21\
+			ai22=ai22+4*F22\
+			ai31=ai31+4*F31\
+			ai32=ai32+4*F32\
+			ai41=ai41+4*F41\
+			ai42=ai42+4*F42\
+			ai51=ai51+4*F51\
+			ai52=ai52+4*F52\
+			ai61=ai61+4*F61\
+			\
+			j=1\
+			else\
+			ai11=ai11+2*F11\
+			ai12=ai12+2*F12\
+			ai21=ai21+2*F21\
+			ai22=ai22+2*F22\
+			ai31=ai31+2*F31\
+			ai32=ai32+2*F32\
+			ai41=ai41+2*F41\
+			ai42=ai42+2*F42\
+			ai51=ai51+2*F51\
+			ai52=ai52+2*F52\
+			ai61=ai61+2*F61\
+			j=0\
+			end if	\
+50		continue\
+		\
+		ai11=DX*ai11/3.0\
+		ai12=DX*ai12/3.0\
+		ai21=DX*ai21/3.0\
+		ai22=DX*ai22/3.0\
+		ai31=DX*ai31/3.0\
+		ai32=DX*ai32/3.0\
+		ai41=DX*ai41/3.0\
+		ai42=DX*ai42/3.0\
+		ai51=DX*ai51/3.0\
+		ai52=DX*ai52/3.0\
+		ai61=DX*ai61/3.0\
+		ai62=DX*ai62/3.0\
+\
+		return\
+		end\
+}
