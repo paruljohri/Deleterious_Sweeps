@@ -1,0 +1,211 @@
+c	program for a single sweep event
+c	locus B is neutral; A has a mutant favourable allele A2
+
+	CHARACTER*20 FOUT
+	
+	integer N,NH,nrep,ngen1,NX
+	real theta,AN,r,q,q1,ak11,ak12,ak22,u2
+	
+	write (9,*) 'Output file?'
+	read(9,*)  FOUT 
+	OPEN (1,FILE=FOUT)
+	REWIND 1
+		
+	write (9,*) 'random number seed?'
+	read (9,*) NX
+	write (9,*) 'population size?'
+	read (9,*) N
+	write (9,*) 'number of reps'
+	read (9,*) nrep
+	write (9,*) 'gamma and h?'
+	read (9,*) gam,h2
+	write (9,*) 'Scaled mutation rate?'
+	read (9,*) theta
+	write (9,*) 'rho?'
+	read (9,*) rho
+c	scaled selection, recombination and mutation parameters
+	
+	anrep=nrep
+	NH=2*N
+	AN=NH
+	
+	s2=gam/AN
+	r=rho/AN
+	u2=theta/AN
+	u=0.5*u2
+c	unscaled parameters
+
+	write(1,*) 'Program for sweep effect on expected diversity'
+	write(1,*) 'Locus A is subject to  selection'
+	write(1,*) ''	
+	write(1,*) 'Scaled parameters'
+	write(1,*) 'gamma= ',gam,' h= ',h2
+	write(1,*) 'rho= ',rho
+	write(1,*) 'theta= ',theta
+	write(1,*) ''
+	write(1,*) 'Unscaled parameters'
+	write(1,*) 's= ',s2,'r= ',r
+	write(1,*) 'u= ',u
+	write(1,*) ''
+	write(1,*) 'Population size= ',N
+	write(1,*) 'Number of replicates= ',nrep
+	write(1,*) ''
+	
+	write(9,*) 'Population size= ',N
+	write(9,*) 'gamma= ',gam,' h= ',h2
+	write(9,*) 'rho= ',rho
+	write(9,*) 'theta= ',theta
+	write(9,*) ''	
+	write(9,*) 'Number of replicates= ',nrep
+	write(9,*) ''		
+	
+	q0=1/AN
+	write (9,*) 'Initial A2 allele frequency= ',q0
+	write (1,*) 'Initial A2 allele frequency= ',q0
+	write (1,*) ''
+	pause
+	
+	
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c	starts simulations
+	i=0
+	ak22s=0.0
+	ak22ss=0.0
+	nrun=0
+	
+20	i=i+1
+	nrun=nrun+1
+	ngen1=0
+		
+10	if(ngen1.eq.0) then
+	q=q0
+	p=1-q
+	nlA2=0
+	ak11=theta
+	ak12=theta
+	ak22=0.0
+c	akij is neutral diversity between alleles Ai and Aj
+	end if
+	
+15	q1=q
+c	stores previous generation frequency
+
+	delsq=p*q*s2*(q*(1-2*h2)+h2)
+	delsq=delsq/(1-2*p*q*s2*h2-(q**2)*s2)
+	q=q+delsq
+	p=1-q
+c	deterministic allele frequency change
+	ngen1=ngen1+1
+	
+	N11=0
+	  do 120 j1=1,NH
+	  z=RAND(NX)
+	  if(z.le.p) then
+	  N11=N11+1 
+	  go to 120
+	  end if
+120	 continue
+c	binomial sampling of A1 alleles
+	
+	p=N11/AN
+	q=1-p
+c	new allele frequencies
+x	write(9,*) 'Generation ',ngen1,' q= ',q,'delq= ',delsq
+
+	if(N11.eq.NH) then
+	i=i-1
+	go to 20
+	end if
+c	A2 is lost from population
+c	run is terminated and i is reset
+
+	call swdiv(AN,r,q1,ak11,ak12,ak22,u2)	
+x	write(9,*) 'ak11= ',ak11,' ak12= ',ak12,' ak22= ',ak22
+x	write(9,*) ''
+x	pause	
+
+	if(N11.eq.0) then
+x	write(9,*) ''
+x	write(9,*) 'Replicate= ',i
+x	write(9,*) 'ak11= ',ak11,' ak12= ',ak12,' ak22= ',ak22
+x	pause
+	ak22s=ak22s+ak22
+	ak22ss=ak22ss+ak22**2
+c	sum and sum of squares of diversities of A2/A2 population at time of fixation
+	  if(i.eq.nrep) then 
+	   go to 200
+          else 
+	  go to 20
+	  end if
+	end if
+c	A1 is lost from population and run is completed	
+
+	go to 15
+
+200	anrun=nrun
+	nloss=nrun-nrep
+	ploss=nloss/anrun
+	pfix=1.0-ploss
+	ak22m=ak22s/anrep
+	vak22=(ak22ss-(ak22s**2/anrep))/(anrep-1.0)
+	seadk22=sqrt(vak22/anrep)
+		
+	write(9,*) 'Frequency of fixations of A2= ',pfix
+	write(9,*) 'Mean final diversity= ',ak22m,' s.e.= ',seadk22
+	delak=1.0-ak22m/theta
+	sedel=seadk22/theta
+	write(9,*) 'Diversity reduction= ',delak,' s.e.= ',sedel
+	write(9,*) 'Seed'
+	write(9,*) NX
+	
+	write(1,*) 'Total number of runs= ',nrun,'Number of losses of A2= ',nloss
+	write(1,*) 'Frequency of fixations of A2= ',pfix
+	write(1,*) 'Final diversity= ',ak22m,' s.e.= ',seadk22
+	write(1,*) 'Diversity reduction= ',delak,' s.e.= ',sedel	
+	write(1,*) ''
+	write(1,*) 'Seed'
+	write(1,*) NX
+	pause
+
+	end
+	
+	subroutine swdiv(AN,r,x,ak11,ak12,ak22,u2)
+	real AN,r,x,ak11,ak12,ak22,u2
+c	recursions for pairwise diversities	
+		
+	y=1-x
+	c1=1.0/(AN*y)
+	c2=1.0/(AN*x)
+	r1=2.0*r*x
+	r2=2.0*r*y
+	
+	ak11n=ak11+u2+r1*ak12-(r1+(u2*(1.0-c1)+c1))*ak11
+	ak12n=(1-r)*ak12+0.5*r2*ak11+0.5*r1*ak22+u2
+	ak22n=ak22+u2+r2*ak12-(r2+(u2*(1.0-c2)+c2))*ak22
+x	write(9,*) 'x=',x,' c1= ',c1,' c2= ',c2
+x	write(9,*) 'r1= ',r1,' r2= ',r2
+x	write(9,*) 'Old ak values',ak11,ak12,ak22
+x	write(9,*) 'New ak values',ak11n,ak12n,ak22n
+x	write(9,*) ''
+x	pause
+	
+	ak11=ak11n
+	ak12=ak12n
+	ak22=ak22n
+
+	return
+	end
+	
+	
+	FUNCTION RAND(NX)
+	
+C	RETURNS A UNIFORM RANDOM NO.
+	NY=SHIFT(NX,16)
+	NY=NY+NX+NX+NX
+	NZ=SHIFT(NY,-31)
+	NX=SHIFT(NZ,31)
+	NX=NY-NX
+	AX=NX/2.147484E9
+	RAND=AX
+	RETURN
+	END
