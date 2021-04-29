@@ -1,3 +1,5 @@
+  
+c	Written by Brian Charlesworth
 c	program for a single sweep event
 c	locus B is neutral; A has a mutant favourable allele A2
 
