@@ -1,3 +1,4 @@
+c	Written by Brian Charlesworth
 c	program to calculate recurrent sweep effects for weakly selected,deleterious   	nonsynonymous mutations
 c	random mating and semidominance are assumed
 c	includes summation and integration results
