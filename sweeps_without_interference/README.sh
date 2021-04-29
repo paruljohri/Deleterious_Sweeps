@@ -2,7 +2,7 @@
 #All relevant scripts are provided in this folder.
 
 #Step 1: Simulate sweeps using SLiM:
-
+slim -d gamma=5 -d replicate=<enter replicate number here> -d dominance=<dominance coefficient> single_sweeps.slim
 
 #Step 2: Get diversity and other stats in sliding windows near the target site:
 python statistics_slidingwindow_pylibseq_general_reps.py -winSize 10 -stepSize 10 -regionLen 10000 -folder /path/to/output/folder/gamma_pos_five -output_prefix gamma_pos_five
